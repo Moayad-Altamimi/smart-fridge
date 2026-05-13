@@ -255,7 +255,7 @@ async function addInventoryItem() {
     const name = document.getElementById("newItemName").value.trim();
     const qty  = parseInt(document.getElementById("newItemQty").value, 10);
     const unit = document.getElementById("newItemUnit").value.trim() || "pcs";
-    const type = document.getElementById("newItemType").value;
+    const type = "count";
 
     if (!name) { alert("Enter an item name."); return; }
     if (!qty || qty <= 0) { alert("Enter a valid quantity."); return; }
