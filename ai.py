@@ -19,9 +19,10 @@ def generate_recipe(items, meal_type):
         return "❌ Cannot generate recipe: Your inventory is empty! Add some items first."
 
     prompt = (
-        f"Create a SHORT and QUICK {meal_type} recipe using: {inventory_text}. "
-        "Format the response as Title, Ingredients (bullet list), Steps (numbered, 4-5 steps only). "
-        "Make it practical for daily use."
+    f"Create a SHORT and QUICK {meal_type} recipe using ONLY these ingredients: {inventory_text}. "
+    "STRICT RULE: Do NOT add any ingredient that is not in the list above. No eggs, no butter, no salt unless they are explicitly listed. "
+    "If the ingredients are limited, make the simplest possible recipe with only what is available. "
+    "Format: Title, Ingredients (bullet list of ONLY the listed items used), Steps (numbered, 4-5 steps only)."
     )
 
     if not Groq:
