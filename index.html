@@ -356,6 +356,8 @@ async function removeUsedRecipeItems() {
 async function loadAll() {
     await checkBackend();
     await Promise.all([loadStatus(), loadInventory(), checkAlerts()]);
+    document.getElementById("recipe").innerText = "Select a meal and generate a recipe.";
+    document.getElementById("recipe-actions").innerHTML = "";
 }
 
 window.addEventListener("DOMContentLoaded", loadAll);
