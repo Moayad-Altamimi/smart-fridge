@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Fridge Dashboard</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --primary: #38bdf8;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #60a5fa;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh;
+            font-family: Inter, system-ui, sans-serif;
+            background: radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 20%),
+                        radial-gradient(circle at bottom right, rgba(96,165,250,0.16), transparent 18%),
+                        linear-gradient(180deg, #020617 0%, #0a1120 100%);
+            color: var(--text); padding: 24px;
+        }
+        .page-header {
+            text-align: center; max-width: 840px; margin: 0 auto 28px;
+            padding: 20px 24px 16px; border-radius: 28px;
+            background: rgba(15,23,42,0.9); border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 28px 80px rgba(0,0,0,0.18);
+        }
+        .page-header h1 { margin: 0; font-size: clamp(2rem,3vw,3rem); color: var(--primary); }
+        .page-header p { margin: 14px auto 0; max-width: 760px; color: var(--muted); line-height: 1.7; }
+        .toolbar { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+        .status-dot {
+            display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+            background: #ef4444; margin-right: 6px; vertical-align: middle; transition: background 0.3s;
+        }
+        .status-dot.online { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+        .container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px; max-width: 1200px; margin: 0 auto;
+        }
+        .card {
+            background: rgba(15,23,42,0.92); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px; padding: 24px; backdrop-filter: blur(18px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.16);
+        }
+        .card h2 { margin-top: 0; font-size: 1.15rem; color: #f8fafc; }
+        .card pre, .inventory-list {
+            margin: 18px 0 0; white-space: pre-wrap; word-break: break-word;
+            line-height: 1.6; color: var(--text);
+            background: rgba(15,23,42,0.7); border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05); padding: 18px; min-height: 120px;
+        }
+        .inventory-list { display: flex; flex-direction: column; gap: 10px; min-height: auto; }
+        .inventory-item {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 12px; padding: 10px 12px;
+            background: rgba(255,255,255,0.05); border-radius: 14px;
+        }
+        .inventory-item span { color: var(--text); font-size: 0.98rem; word-break: break-word; }
+        .inventory-item button {
+            background: rgba(255,255,255,0.12); color: var(--text);
+            padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: none;
+        }
+        .card-content { display: flex; flex-direction: column; gap: 12px; }
+        button, select, .card-content input {
+            border: none; border-radius: 14px; padding: 12px 16px;
+            cursor: pointer; font-size: 0.98rem;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+        }
+        .card-content input {
+            width: 100%; background: rgba(255,255,255,0.08);
+            color: var(--text); outline: 1px solid rgba(255,255,255,0.1);
+        }
+        .inventory-form {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            align-items: stretch; margin-top: 12px;
+        }
+        .inventory-form input[type="number"] { width: 100px; }
+        .inventory-form select { min-width: 130px; }
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: #07101e; font-weight: 700;
+            box-shadow: 0 18px 28px rgba(56,189,248,0.15);
+        }
+        button:hover { transform: translateY(-1px); box-shadow: 0 20px 32px rgba(56,189,248,0.24); }
+        select { background: rgba(255,255,255,0.08); color: var(--text); outline: 1px solid rgba(255,255,255,0.1); }
+        #recipe { margin-top: 14px; line-height: 1.7; color: var(--text); min-height: 80px; }
+        .loading { color: var(--muted); font-style: italic; }
+        .footer { margin: 36px auto 0; text-align: center; color: var(--muted); font-size: 0.9rem; }
+        @media (max-width: 540px) { body { padding: 16px; } .card { padding: 18px; } }
+    </style>
+</head>
+<body>
+
+<div class="page-header">
+    <h1>🥶 Smart Fridge Dashboard</h1>
+    <p>
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Connecting to backend…</span>
+    </p>
+    <div class="toolbar">
+        <button onclick="loadAll()">Refresh All</button>
+    </div>
+</div>
+
+<div class="container">
+
+    <div class="card">
+        <h2>🌡️ Temperature</h2>
+        <div class="card-content">
+            <p id="temp" class="loading">Loading…</p>
+            <input id="tempInput" type="number" placeholder="Manual override (°C)" step="0.1">
+            <button onclick="setTemperature()">Set Temperature</button>
+            <small style="color:var(--muted)">Manual override until real sensor is connected.</small>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📦 Inventory</h2>
+        <div class="card-content">
+            <div id="inventory" class="inventory-list loading">Loading…</div>
+            <div class="inventory-form">
+                <input id="newItemName" type="text"   placeholder="Item name">
+                <input id="newItemQty"  type="number" min="1" value="1" placeholder="Qty">
+                <input id="newItemUnit" type="text"   placeholder="Unit (ml, pcs…)">
+                <select id="newItemType">
+                    <option value="count">Count</option>
+                    <option value="liquid">Liquid</option>
+                </select>
+                <button onclick="addInventoryItem()">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>⚠️ Alerts</h2>
+        <pre id="alerts" class="loading">Loading…</pre>
+        <button onclick="checkAlerts()" style="margin-top:14px">Check Alerts</button>
+    </div>
+
+    <div class="card">
+        <h2>🍽️ Recipe (AI)</h2>
+        <div class="card-content">
+            <select id="meal">
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+            </select>
+            <button onclick="getRecipe()">Generate Recipe</button>
+            <div id="recipe">Select a meal and generate a recipe.</div>
+            <div id="recipe-actions"></div>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    ✨ Powered by FastAPI + Groq AI + Python 🐍
+
+<script>
+// ── API base URL (empty = relative, works when served by FastAPI) ──────────
+const API = "";
+
+async function apiFetch(path, options = {}) {
+    const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
+// ── Backend health indicator ───────────────────────────────────────────────
+async function checkBackend() {
+    try {
+        await apiFetch("/status");
+        document.getElementById("statusDot").className = "status-dot online";
+        document.getElementById("statusText").innerText = "Backend connected ✓";
+        return true;
+    } catch {
+        document.getElementById("statusDot").className = "status-dot";
+        document.getElementById("statusText").innerText =
+            "Backend offline — run: python main.py";
+        return false;
+    }
+}
+
+// ── Temperature ────────────────────────────────────────────────────────────
+async function loadStatus() {
+    try {
+        const data = await apiFetch("/status");
+        const temp = data.temperature;
+        document.getElementById("temp").innerText =
+            temp !== null && temp !== undefined
+                ? `🌡️ ${temp}°C`
+                : "🌡️ No sensor reading yet";
+        if (temp !== null && temp !== undefined)
+            document.getElementById("tempInput").value = temp;
+    } catch {
+        document.getElementById("temp").innerText = "❌ Unavailable";
+    }
+}
+
+async function setTemperature() {
+    const val = document.getElementById("tempInput").value;
+    if (!val) { alert("Enter a temperature value."); return; }
+    try {
+        await apiFetch("/temperature/set", {
+            method: "POST",
+            body: JSON.stringify({ temperature: parseFloat(val) }),
+        });
+        await loadStatus();
+    } catch (e) {
+        alert("Failed to set temperature: " + e.message);
+    }
+}
+
+// ── Inventory ──────────────────────────────────────────────────────────────
+function renderInventory(inv) {
+    const container = document.getElementById("inventory");
+    const items = Object.entries(inv || {});
+    if (!items.length) {
+        container.innerHTML = '<div style="color:var(--muted)">No items yet.</div>';
+        return;
+    }
+    container.innerHTML = "";
+    items.forEach(([key, info]) => {
+        const row = document.createElement("div");
+        row.className = "inventory-item";
+
+        const span = document.createElement("span");
+        span.innerText = `${info.name || key}: ${info.qty} ${info.unit || "pcs"}`;
+
+        const btn = document.createElement("button");
+        btn.innerText = "Remove";
+        btn.onclick = () => removeItem(key);
+
+        row.appendChild(span);
+        row.appendChild(btn);
+        container.appendChild(row);
+    });
+}
+
+async function loadInventory() {
+    try {
+        const data = await apiFetch("/inventory");
+        renderInventory(data.inventory);
+    } catch {
+        document.getElementById("inventory").innerHTML =
+            '<div style="color:#f87171">❌ Could not load inventory.</div>';
+    }
+}
+
+async function addInventoryItem() {
+    const name = document.getElementById("newItemName").value.trim();
+    const qty  = parseInt(document.getElementById("newItemQty").value, 10);
+    const unit = document.getElementById("newItemUnit").value.trim() || "pcs";
+    const type = document.getElementById("newItemType").value;
+
+    if (!name) { alert("Enter an item name."); return; }
+    if (!qty || qty <= 0) { alert("Enter a valid quantity."); return; }
+
+    try {
+        await apiFetch("/inventory/add", {
+            method: "POST",
+            body: JSON.stringify({ item: name, qty, unit, type }),
+        });
+        document.getElementById("newItemName").value = "";
+        document.getElementById("newItemQty").value  = "1";
+        document.getElementById("newItemUnit").value = "";
+        await loadInventory();
+    } catch (e) {
+        alert("Failed to add item: " + e.message);
+    }
+}
+
+async function removeItem(itemKey) {
+    try {
+        await apiFetch("/inventory/remove", {
+            method: "POST",
+            body: JSON.stringify({ item: itemKey }),
+        });
+        await loadInventory();
+    } catch (e) {
+        alert("Failed to remove item: " + e.message);
+    }
+}
+
+// ── Alerts ─────────────────────────────────────────────────────────────────
+async function checkAlerts() {
+    try {
+        const data = await apiFetch("/alerts");
+        const alerts = data.alerts || [];
+        document.getElementById("alerts").innerText =
+            alerts.length ? alerts.join("\n") : "✅ Everything looks good!";
+    } catch {
+        document.getElementById("alerts").innerText = "❌ Could not fetch alerts.";
+    }
+}
+
+// ── Recipe ─────────────────────────────────────────────────────────────────
+let recipeUsedItems = [];
+
+async function getRecipe() {
+    const meal = document.getElementById("meal").value;
+    document.getElementById("recipe").innerHTML =
+        '<span class="loading">⏳ Generating with AI…</span>';
+    document.getElementById("recipe-actions").innerHTML = "";
+
+    try {
+        const data = await apiFetch(`/recipe?meal=${encodeURIComponent(meal)}`);
+        const recipe = data.recipe || "No recipe returned.";
+        document.getElementById("recipe").innerHTML =
+            String(recipe).replace(/\n/g, "<br>");
+
+        // Find inventory items mentioned in the recipe
+        const invData = await apiFetch("/inventory");
+        const inv = invData.inventory || {};
+        const lower = recipe.toLowerCase();
+        recipeUsedItems = Object.keys(inv).filter(k =>
+            lower.includes((inv[k].name || k).toLowerCase())
+        );
+
+        if (recipeUsedItems.length) {
+            document.getElementById("recipe-actions").innerHTML =
+                `<button onclick="removeUsedRecipeItems()" style="margin-top:12px">
+                    Remove Used Items (${recipeUsedItems.join(", ")})
+                </button>`;
+        }
+    } catch (e) {
+        document.getElementById("recipe").innerText = "❌ Error: " + e.message;
+    }
+}
+
+async function removeUsedRecipeItems() {
+    if (!recipeUsedItems.length) return;
+    try {
+        await apiFetch("/inventory/remove-used", {
+            method: "POST",
+            body: JSON.stringify({ items: recipeUsedItems }),
+        });
+        recipeUsedItems = [];
+        document.getElementById("recipe-actions").innerHTML = "";
+        await loadInventory();
+        alert("✅ Used items removed!");
+    } catch (e) {
+        alert("Failed: " + e.message);
+    }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+async function loadAll() {
+    await checkBackend();
+    await Promise.all([loadStatus(), loadInventory(), checkAlerts()]);
+}
+
+window.addEventListener("DOMContentLoaded", loadAll);
+</script>
+</body>
+</html>
