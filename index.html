@@ -346,7 +346,7 @@ async function getRecipe() {
     } catch (e) {
         document.getElementById("recipe").innerText = "❌ Error: " + e.message;
     }
-}
+}        
 
 async function removeUsedRecipeItems() {
     if (!recipeUsedItems.length) return;
